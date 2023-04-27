@@ -1,4 +1,4 @@
-# stockfish engine 3.28.0
+# stockfish engine 15.1
 
 ## unzip required modules
 

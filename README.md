@@ -16,8 +16,9 @@ unzip `stockfish-15.1_linux.zip` to use required modules:
 
 ## modules
 
-- `tkinter` (any version)
+- `tkinter` and `platform` (any version)
 
 - `pyperclip` (1.8.2)
 
 - `stockfish` (3.28.0)
+

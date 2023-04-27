@@ -1,8 +1,15 @@
 import tkinter as tk
-import pyperclip
+import pyperclip, platform
 from stockfish import Stockfish
 
-stockfish = Stockfish(path='.\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe')
+if platform.system() == 'Windows':
+    stockfish = Stockfish(path='.\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe')
+elif platform.system() == 'Linux':
+    stockfish = Stockfish(path='.\stockfish_15.1_linux_x64\stockfish-ubuntu-20.04-x86-64')
+else:
+    print('OS not supported, please try to use another OS instead.')
+    exit()
+
 # {
 #     "Debug Log File": "",
 #     "Contempt": 0,

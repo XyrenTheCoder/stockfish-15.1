@@ -1,5 +1,5 @@
 import tkinter as tk
-import pyperclip, platform
+import pyperclip, platform, random, json, string
 from tkinter import ttk
 from stockfish import Stockfish
 
@@ -28,6 +28,44 @@ else:
 #     "UCI_Elo": 1350
 # }
 
+def save_game():
+    a = string.ascii_letters + string.ascii_letters
+    gameid = '@'
+    for i in range(9):
+        gameid += random.choice(a)
+    with open('./archive.json', 'r') as f:
+        archive = json.load(f)
+    f.close()
+    if gameid in archive:
+        return save_game()
+    else:
+        archive[gameid] = stockfish.get_fen_position()
+        with open('./archive.json', 'w') as f:
+            json.dump(archive, f, indent=4)
+        f.close()
+    alert1.config(text=f"Saved game {gameid} to archive!")
+    return
+
+def reset_board():
+    stockfish.set_fen_position('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+    if flipboard == True:
+        board.config(text=stockfish.get_board_visual(False))
+    else:
+        board.config(text=stockfish.get_board_visual())
+    alert1.config(text='Resetted board.')
+    get_move()
+    return
+
+def flip_board():
+    global flipboard
+    if flipboard != True:
+        flipboard = True
+        board.config(text=stockfish.get_board_visual(False))
+    else:
+        flipboard = False
+        board.config(text=stockfish.get_board_visual())
+    return
+
 def update_engine():
     stockfish.update_engine_parameters({'Skill Level':s_lv.get()})
     stockfish.set_depth(dp.get())
@@ -47,6 +85,7 @@ def copy_fen():
     return
 
 turn = 1
+flipboard = False
 def get_move():
     global turn
     play_move = move.get().strip()
@@ -73,7 +112,10 @@ def get_move():
 
     move.delete(0, tk.END)
 
-    board.config(text=stockfish.get_board_visual())
+    if flipboard == True:
+        board.config(text=stockfish.get_board_visual(False))
+    else:
+        board.config(text=stockfish.get_board_visual())
 
     evaluation = stockfish.get_evaluation()
     evalpos = evaluation['value']
@@ -123,7 +165,7 @@ dp = tk.IntVar()
 s_lv.set(20)
 dp.set(15)
 
-label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', foreground='#006942')
+label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', foreground='#344d50')
 label.place(x=0, y=0)
 
 to_skill_lv = tk.Label(root, text='Stockfish skill level:', font='Verdana 10')
@@ -160,7 +202,7 @@ to_eval = tk.Label(root, text='Evaluation:', font='Verdana 10')
 to_eval.place(x=20, y=95)
 eval = tk.Label(root, font='Verdana 10')
 eval.place(x=20, y=115)
-style.configure('black.Horizontal.TProgressbar', background='#ffffff', troughcolor='#000000', pbarrelief='flat', troughrelief='flat')
+style.configure('black.Horizontal.TProgressbar', background='#f9fbfb', troughcolor='#202727', pbarrelief='flat', troughrelief='flat')
 evalbar = ttk.Progressbar(root, maximum=2000, value=1000, length=315, style='black.Horizontal.TProgressbar')
 evalbar.place(x=80, y=120)
 
@@ -171,13 +213,24 @@ eval1.place(x=20, y=160)
 eval2 = tk.Label(root, font='Verdana 10', foreground='#03a614', justify='left')
 eval2.place(x=20, y=190)
 
-board = tk.Label(root, text=stockfish.get_board_visual(), font=f'Fixedsys 8', justify='left')
+board = tk.Label(root, text=stockfish.get_board_visual(), font=f'Fixedsys 8', foreground='#344d50', justify='left')
 board.place(x=20, y=250)
 
-copy_fen = tk.Button(root, text='copy FEN', font='Verdana 10', command=copy_fen)
-copy_fen.place(x=320, y=260)
+
+flipb = tk.Button(root, text='flip board', font='Verdana 10', command=flip_board)
+flipb.place(x=320, y=260)
+
+resetb = tk.Button(root, text='reset board', font='Verdana 10', command=reset_board)
+resetb.place(x=320, y=290)
+
+fen = tk.Button(root, text='copy FEN', font='Verdana 10', command=copy_fen)
+fen.place(x=320, y=320)
+
+save_to_archive = tk.Button(root, text='save to archive', font='Verdana 10', command=save_game)
+save_to_archive.place(x=320, y=350)
+
 alert1 = tk.Label(root, font='Verdana 8', foreground='#ff0000')
-alert1.place(x=320, y=300)
+alert1.place(x=320, y=390)
 
 get_move()
 root.mainloop()

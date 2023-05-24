@@ -1,5 +1,6 @@
 import tkinter as tk
 import pyperclip, platform, random, json, string
+import chess
 from tkinter import ttk
 from stockfish import Stockfish
 
@@ -8,7 +9,7 @@ if platform.system() == 'Windows':
 elif platform.system() == 'Linux':
     stockfish = Stockfish(path='./stockfish_15.1_linux_x64/stockfish-ubuntu-20.04-x86-64')
 else:
-    print('OS not supported, please try to use another OS instead.')
+    print('OS not supported, please try to use another OS instead.') # mac bad
     exit()
 
 # {
@@ -28,14 +29,88 @@ else:
 #     "UCI_Elo": 1350
 # }
 
+with open('./archive.json', 'r') as f: archive = json.load(f)
+f.close()
+
+opened = False
+def open_archive():
+    def change_state():
+        global opened
+        opened = False
+        archivewin.destroy()
+        return opened
+    global opened, archivewin, vis, _label1
+    if not opened:
+        archivewin = tk.Toplevel(root)
+        archivewin.title('Game Archive')
+        archivewin.geometry('300x400')
+        archivewin.resizable(False, False)
+        archivewin.protocol("WM_DELETE_WINDOW", change_state)
+
+        _label = tk.Label(archivewin, text='Game', font='Verdana 10')
+        _label.place(x=20, y=30)
+
+        g = list(archive)
+        games = tk.OptionMenu(archivewin, gid, *g, command=show_preview)
+        games.place(x=70, y=25)
+
+        _label0 = tk.Label(archivewin, text='Game Preview:', font='Verdana 10')
+        _label0.place(x=20, y=60)
+
+        vis = tk.Label(archivewin, font='Fixedsys 8', foreground='#344d50', justify='left')
+        vis.place(x=20, y=90)
+
+        open = tk.Button(archivewin, text='open', font='Verdana 10', command=confirm_open)
+        open.place(x=20, y=230)
+
+        _label1 = tk.Label(archivewin, font='Verdana 8', foreground='#ff0000')
+        _label1.place(x=20, y=270)
+
+        opened = True
+
+def show_preview(self):
+    vis.config(text=chess.Board(archive[gid.get()]))
+    return
+
+def confirm_open():
+    if gid.get() == "select game id":
+        _label1.config(text="No game selected.")
+        return
+    else:
+        global warn
+        warn = tk.Toplevel(archivewin)
+        warn.title('Confirm')
+        warn.geometry('570x150')
+        warn.resizable(False, False)
+
+        _label0 = tk.Label(warn, text=f'Are you sure to open game {gid.get()}?\nThe current game will be lost if not saved to archive with the current position.', font='Verdana 10')
+        _label0.place(x=20, y=30)
+
+        confirm = tk.Button(warn, text='confirm', font='Verdana 10', command=retrieve_game)
+        confirm.place(x=260, y=80)
+
+def retrieve_game():
+    gameid = gid.get()
+    fen = archive[f'{gameid}']
+    stockfish.set_fen_position(fen)
+    board.config(text=stockfish.get_board_visual())
+    if fen.split()[1] == 'b':
+        to_move.config(text='Black to move:')
+    else:
+        to_move.config(text='White to move:')
+    alert1.config(text=f"Opened game {gameid} from archive!")
+    get_move()
+    warn.destroy()
+    archivewin.destroy()
+    global opened
+    opened = False
+    return
+
 def save_game():
     a = string.ascii_letters + string.ascii_letters
     gameid = '@'
     for i in range(9):
         gameid += random.choice(a)
-    with open('./archive.json', 'r') as f:
-        archive = json.load(f)
-    f.close()
     if gameid in archive:
         return save_game()
     else:
@@ -120,7 +195,7 @@ def get_move():
     evaluation = stockfish.get_evaluation()
     evalpos = evaluation['value']
     if evaluation['type'] == 'cp':
-        eval.config(text=evaluation['value'])
+        eval.config(text=evalpos / 100) #centipawn
         scale = evalpos + 1000 #max 2000, min 0, w -1000, b -1000
         evalbar.config(value=scale)
     else:
@@ -133,8 +208,10 @@ def get_move():
         else: #mate in 0, checkmated
             if stockfish.get_fen_position().split(' ')[1] == 'w':
                 eval.config(text="0-1")
+                evalbar.config(value=0)
             else:
                 eval.config(text="1-0")
+                evalbar.config(value=2000)
             eval1.config(text='')
             return
 
@@ -162,8 +239,10 @@ style.theme_use('alt')
 # stockfish settings
 s_lv = tk.IntVar()
 dp = tk.IntVar()
+gid = tk.StringVar()
 s_lv.set(20)
 dp.set(15)
+gid.set('select game id')
 
 label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', foreground='#344d50')
 label.place(x=0, y=0)
@@ -216,7 +295,6 @@ eval2.place(x=20, y=190)
 board = tk.Label(root, text=stockfish.get_board_visual(), font=f'Fixedsys 8', foreground='#344d50', justify='left')
 board.place(x=20, y=250)
 
-
 flipb = tk.Button(root, text='flip board', font='Verdana 10', command=flip_board)
 flipb.place(x=320, y=260)
 
@@ -227,7 +305,10 @@ fen = tk.Button(root, text='copy FEN', font='Verdana 10', command=copy_fen)
 fen.place(x=320, y=320)
 
 save_to_archive = tk.Button(root, text='save to archive', font='Verdana 10', command=save_game)
-save_to_archive.place(x=320, y=350)
+save_to_archive.place(x=20, y=550)
+
+open_from_archive = tk.Button(root, text='open from archive', font='Verdana 10', command=open_archive)
+open_from_archive.place(x=170, y=550)
 
 alert1 = tk.Label(root, font='Verdana 8', foreground='#ff0000')
 alert1.place(x=320, y=390)

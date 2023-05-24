@@ -1,4 +1,4 @@
-# stockfish engine 15.1
+# stockfish engine 3.28.0
 
 ## unzip required modules
 
@@ -22,3 +22,6 @@ unzip `stockfish-15.1_linux.zip` to use required modules:
 
 - `stockfish` (3.28.0)
 
+## credits
+
+- [c²#0001](https://github.com/hairyballtheorem) for idea

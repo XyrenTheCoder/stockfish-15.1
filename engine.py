@@ -3,13 +3,14 @@ import pyperclip, platform, random, json, string
 import chess
 from tkinter import ttk
 from stockfish import Stockfish
+import chess.engine
 
 if platform.system() == 'Windows':
     stockfish = Stockfish(path='.\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe')
 elif platform.system() == 'Linux':
     stockfish = Stockfish(path='./stockfish_15.1_linux_x64/stockfish-ubuntu-20.04-x86-64')
 else:
-    print('OS not supported, please try to use another OS instead.') # mac bad
+    print('OS not supported, please try to use another OS instead.') #mac bad
     exit()
 
 # {
@@ -57,7 +58,7 @@ def open_archive():
         _label0 = tk.Label(archivewin, text='Game Preview:', font='Verdana 10')
         _label0.place(x=20, y=60)
 
-        vis = tk.Label(archivewin, font='Fixedsys 8', foreground='#344d50', justify='left')
+        vis = tk.Label(archivewin, font='Consolas 10', foreground='#344d50', justify='left')
         vis.place(x=20, y=90)
 
         open = tk.Button(archivewin, text='open', font='Verdana 10', command=confirm_open)
@@ -229,7 +230,7 @@ def get_move():
     return
 
 root = tk.Tk()
-root.geometry('800x600')
+root.geometry('800x800')
 root.title('Stockfish Engine 15.1')
 root.iconbitmap('./stockfish.ico')
 
@@ -247,6 +248,7 @@ gid.set('select game id')
 label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', foreground='#344d50')
 label.place(x=0, y=0)
 
+# stockfish settings
 to_skill_lv = tk.Label(root, text='Stockfish skill level:', font='Verdana 10')
 to_skill_lv.place(x=450, y=30)
 lv = [10, 15, 20]
@@ -292,23 +294,23 @@ eval1.place(x=20, y=160)
 eval2 = tk.Label(root, font='Verdana 10', foreground='#03a614', justify='left')
 eval2.place(x=20, y=190)
 
-board = tk.Label(root, text=stockfish.get_board_visual(), font=f'Fixedsys 8', foreground='#344d50', justify='left')
+board = tk.Label(root, text=stockfish.get_board_visual(), font='Consolas 12', foreground='#344d50', justify='left')
 board.place(x=20, y=250)
 
 flipb = tk.Button(root, text='flip board', font='Verdana 10', command=flip_board)
-flipb.place(x=320, y=260)
+flipb.place(x=360, y=260)
 
 resetb = tk.Button(root, text='reset board', font='Verdana 10', command=reset_board)
-resetb.place(x=320, y=290)
+resetb.place(x=360, y=290)
 
 fen = tk.Button(root, text='copy FEN', font='Verdana 10', command=copy_fen)
-fen.place(x=320, y=320)
+fen.place(x=360, y=320)
 
 save_to_archive = tk.Button(root, text='save to archive', font='Verdana 10', command=save_game)
-save_to_archive.place(x=20, y=550)
+save_to_archive.place(x=20, y=610)
 
 open_from_archive = tk.Button(root, text='open from archive', font='Verdana 10', command=open_archive)
-open_from_archive.place(x=170, y=550)
+open_from_archive.place(x=170, y=610)
 
 alert1 = tk.Label(root, font='Verdana 8', foreground='#ff0000')
 alert1.place(x=320, y=390)

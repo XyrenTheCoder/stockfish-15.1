@@ -3,7 +3,7 @@ import pyperclip, platform, random, json, string
 import chess
 from tkinter import ttk
 from stockfish import Stockfish
-import chess.engine
+import chess.engine, stockfish
 
 if platform.system() == 'Windows':
     stockfish = Stockfish(path='.\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe')
@@ -63,6 +63,8 @@ def open_archive():
 
         open = tk.Button(archivewin, text='open', font='Verdana 10', command=confirm_open)
         open.place(x=20, y=230)
+        delete = tk.Button(archivewin, text='delete', font='Verdana 10', command=confirm_delete)
+        delete.place(x=80, y=230)
 
         _label1 = tk.Label(archivewin, font='Verdana 8', foreground='#ff0000')
         _label1.place(x=20, y=270)
@@ -84,11 +86,28 @@ def confirm_open():
         warn.geometry('570x150')
         warn.resizable(False, False)
 
-        _label0 = tk.Label(warn, text=f'Are you sure to open game {gid.get()}?\nThe current game will be lost if not saved to archive with the current position.', font='Verdana 10')
+        _label0 = tk.Label(warn, text=f'Are you sure to open game {gid.get()}?\nThe current game will be lost if not saved to archive with the current position.', font='Verdana 10', justify='center')
         _label0.place(x=20, y=30)
 
         confirm = tk.Button(warn, text='confirm', font='Verdana 10', command=retrieve_game)
         confirm.place(x=260, y=80)
+
+def confirm_delete():
+    if gid.get() == "select game id":
+        _label1.config(text="No game selected.")
+        return
+    else:
+        global warn
+        warn = tk.Toplevel(archivewin)
+        warn.title('Delete')
+        warn.geometry('340x150')
+        warn.resizable(False, False)
+
+        _label0 = tk.Label(warn, text=f'Are you sure to delete game {gid.get()}?\nThis action cannot be recovered.', font='Verdana 10', justify='center')
+        _label0.place(x=20, y=30)
+
+        confirm = tk.Button(warn, text='confirm', font='Verdana 10', command=delete_game)
+        confirm.place(x=130, y=80)
 
 def retrieve_game():
     gameid = gid.get()
@@ -122,6 +141,23 @@ def save_game():
     alert1.config(text=f"Saved game {gameid} to archive!")
     return
 
+def delete_game():
+    gameid = gid.get()
+    if gameid in archive:
+        del archive[gameid]
+        with open('./archive.json', 'w') as f:
+            json.dump(archive, f, indent=4)
+        f.close()
+        alert1.config(text=f"Deleted game {gameid} from archive!")
+        get_move()
+        warn.destroy()
+        archivewin.destroy()
+        global opened
+        opened = False
+        return
+    else:
+        _label1.config(text=f'Game {gameid} does not exist or is deleted.')
+
 def reset_board():
     stockfish.set_fen_position('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     if flipboard == True:
@@ -146,6 +182,7 @@ def update_engine():
     stockfish.update_engine_parameters({'Skill Level':s_lv.get()})
     stockfish.set_depth(dp.get())
     alert2.config(text='Updated engine parameters successfully!\nPlease mind that the settings may affect engine performance.')
+    get_move()
     return
 
 def reset_engine():
@@ -166,7 +203,9 @@ def get_move():
     global turn
     play_move = move.get().strip()
 
-    if stockfish.is_move_correct(play_move) == True and len(play_move) == 4:
+    if len(play_move) == 0:
+        alert.config(text=f'Generated new best moves.')
+    elif stockfish.is_move_correct(play_move) == True:
         if turn % 2 == 0:
             alert.config(text=f"Black played: {play_move}")
         else:
@@ -174,12 +213,7 @@ def get_move():
         stockfish.make_moves_from_current_position([play_move])
         turn = turn + 1
     else:
-        if len(play_move) == 0:
-            alert.config(text=f'Generated new best moves.')
-        elif len(play_move) != 4:
-            alert.config(text=f"Please use the preferred chess notation by UCI engines'.\n(e.g. a2a4 means piece on a2 moves to a4)")
-        else:
-            alert.config(text=f'Move {play_move} is an illegal move.')
+        alert.config(text=f'Move {play_move} is an illegal move or is not an UCI move.')
 
     if turn % 2 == 0:
         to_move.config(text='Black to move:')
@@ -214,6 +248,7 @@ def get_move():
                 eval.config(text="1-0")
                 evalbar.config(value=2000)
             eval1.config(text='')
+            eval2.config(text='')
             return
 
     eval1.config(text=stockfish.get_best_move())
@@ -224,7 +259,7 @@ def get_move():
             top_moves += f"{num}. {i['Move']}, M{i['Mate']}\n"
             num = num + 1
         else:
-            top_moves += f"{num}. {i['Move']}, pos {i['Centipawn']}\n"
+            top_moves += f"{num}. {i['Move']}, eval {i['Centipawn'] / 100}\n"
             num = num + 1
     eval2.config(text=top_moves)
     return

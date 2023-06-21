@@ -56,31 +56,31 @@ def open_archive():
         archivewin.geometry('300x400')
         archivewin.resizable(False, False)
         archivewin.protocol("WM_DELETE_WINDOW", change_state)
+        archivewin.config(bg='#312e2b')
 
-        _label = tk.Label(archivewin, text='Game', font='Verdana 10')
+        _label = tk.Label(archivewin, text='Game', font='Verdana 10', fg='#ffffff', bg='#312e2b')
         _label.place(x=20, y=30)
 
         g = list(archive)
         games = tk.OptionMenu(archivewin, gid, *g, command=show_preview)
         games.place(x=70, y=25)
+        games.config(fg='#ffffff', bg="#3c3936", activeforeground='#ffffff', activebackground='#3c3936', font='Verdana 8')
 
-        _label0 = tk.Label(archivewin, text='Game Preview:', font='Verdana 10')
+        _label0 = tk.Label(archivewin, text='Game Preview:', font='Verdana 10',  fg='#ffffff', bg='#312e2b')
         _label0.place(x=20, y=60)
 
-        vis = tk.Label(archivewin, font='Consolas 10', fg='#7fa650', justify='left')
+        vis = tk.Label(archivewin, font='Consolas 10', fg='#7fa650', bg='#312e2b', justify='left')
         vis.place(x=20, y=90)
 
-        open = tk.Button(archivewin, text='open', font='Verdana 10', command=confirm_open)
+        open = tk.Button(archivewin, text='open', font='Verdana 10', fg='#ffffff', bg='#8bb24d', activeforeground='#ffffff', activebackground='#537133', command=confirm_open)
         open.place(x=20, y=230)
-        delete = tk.Button(archivewin, text='delete', font='Verdana 10', command=confirm_delete)
+        delete = tk.Button(archivewin, text='delete', font='Verdana 10', fg='#ffffff', bg='#3c3936', activeforeground='#ffffff', activebackground='#171614', command=confirm_delete)
         delete.place(x=80, y=230)
 
-        _label1 = tk.Label(archivewin, font='Verdana 8', fg='#ff0000')
+        _label1 = tk.Label(archivewin, font='Verdana 8',  fg='#b23330', bg='#312e2b', )
         _label1.place(x=20, y=270)
 
         opened = True
-
-        print(get_pgn())
 
 def show_preview(self):
     vis.config(text=chess.Board(archive[gid.get()]))
@@ -96,11 +96,12 @@ def confirm_open():
         warn.title('Confirm')
         warn.geometry('570x150')
         warn.resizable(False, False)
+        warn.config(bg='#312e2b')
 
-        _label0 = tk.Label(warn, text=f'Are you sure to open game {gid.get()}?\nThe current game will be lost if not saved to archive with the current position.', font='Verdana 10', justify='center')
+        _label0 = tk.Label(warn, text=f'Are you sure to open game {gid.get()}?\nThe current game will be lost if not saved to archive with the current position.', font='Verdana 10',  fg='#ffffff', bg='#312e2b', justify='center')
         _label0.place(x=20, y=30)
 
-        confirm = tk.Button(warn, text='confirm', font='Verdana 10', command=retrieve_game)
+        confirm = tk.Button(warn, text='confirm', font='Verdana 10', fg='#ffffff', bg='#8bb24d', activeforeground='#ffffff', activebackground='#537133', command=retrieve_game)
         confirm.place(x=260, y=80)
 
 def confirm_delete():
@@ -113,11 +114,12 @@ def confirm_delete():
         warn.title('Delete')
         warn.geometry('340x150')
         warn.resizable(False, False)
+        warn.config(bg='#312e2b')
 
-        _label0 = tk.Label(warn, text=f'Are you sure to delete game {gid.get()}?\nThis action cannot be recovered.', font='Verdana 10', justify='center')
+        _label0 = tk.Label(warn, text=f'Are you sure to delete game {gid.get()}?\nThis action cannot be recovered.', font='Verdana 10',  fg='#b23330', bg='#312e2b', justify='center')
         _label0.place(x=20, y=30)
 
-        confirm = tk.Button(warn, text='confirm', font='Verdana 10', command=delete_game)
+        confirm = tk.Button(warn, text='confirm', font='Verdana 10', fg='#ffffff', bg='#8bb24d', activeforeground='#ffffff', activebackground='#537133', command=delete_game)
         confirm.place(x=130, y=80)
 
 def retrieve_game():
@@ -214,14 +216,22 @@ def get_pgn():
     game = chess.pgn.Game()
     game.headers["Event"] = "Stockfish Engine 15.1"
     game.headers["Site"] = "https://github.com/archisha69/stockfish-15.1"
-    game.headers["Date"] = today.strftime("%d.%m.%Y")
+    game.headers["Date"] = today.strftime("%Y.%m.%d")
     game.headers["Round"] = "0"
     game.headers["White"] = "Stockfish Engine 15.1"
     game.headers["Black"] = "Stockfish Engine 15.1"
-    node = game.add_variation(moved[0])
-    for m in moved[1:]:
-        node = node.add_variation(m)
-    return game
+    try:
+        node = game.add_variation(moved[0])
+        for m in moved[1:]:
+            node = node.add_variation(m)
+        return game
+    except IndexError:
+        alert1.config(text='PGN empty!')
+
+def copy_pgn():
+    pyperclip.copy(str(get_pgn()))
+    alert1.config(text="Copied PGN from current position!")
+    return
 
 flipboard = False
 board2 = chess.Board()
@@ -234,9 +244,9 @@ def get_move():
     if len(play_move) == 0:
         alert.config(text=f'Generated new best moves.')
     elif stockfish.is_move_correct(play_move) and play_move != '':
-        if board2.gives_check(chess.Move.from_uci(play_move)):
-            piece_check.play()
-        elif play_move == 'e1g1' or play_move == 'e1c1' or play_move == 'e8g8' or play_move == 'e8c8':
+        # if board2.gives_check(chess.Move.from_uci(play_move)):
+        #     piece_check.play()
+        if play_move == 'e1g1' or play_move == 'e1c1' or play_move == 'e8g8' or play_move == 'e8c8':
             if (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_KING and stockfish.get_what_is_on_square('h1') == Stockfish.Piece.WHITE_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_KING and stockfish.get_what_is_on_square('a1') == Stockfish.Piece.WHITE_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_KING and stockfish.get_what_is_on_square('h8') == Stockfish.Piece.BLACK_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_KING and stockfish.get_what_is_on_square('a8') == Stockfish.Piece.BLACK_ROOK):
                 piece_castle.play()
             else:
@@ -255,7 +265,7 @@ def get_move():
         else:
             alert.config(text=f"White played: {play_move}")
         stockfish.make_moves_from_current_position([play_move])
-        board2.push(chess.Move.from_uci(play_move))
+        # board2.push(chess.Move.from_uci(play_move))
         moved.append(chess.Move.from_uci(play_move))
     else:
         alert.config(text=f'Move {play_move} is an illegal move or is not an UCI move.')
@@ -312,7 +322,7 @@ def get_move():
     return
 
 root = tk.Tk()
-root.geometry('800x800')
+root.geometry('800x1020')
 root.title('Stockfish Engine 15.1')
 root.iconbitmap('./stockfish.ico')
 root.config(bg='#312e2b')
@@ -332,7 +342,6 @@ label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', fg='#8bb24d'
 label.place(x=0, y=0)
 
 # stockfish settings
-
 to_skill_lv = tk.Label(root, text='Stockfish skill level:', font='Verdana 10', fg='#ffffff', bg='#312e2b')
 to_skill_lv.place(x=800, y=30)
 lv = [10, 15, 20]
@@ -389,14 +398,17 @@ resetb.place(x=600, y=340)
 fen = tk.Button(root, text='copy FEN', font='Verdana 10', command=copy_fen)
 fen.place(x=600, y=370)
 
+pgn = tk.Button(root, text='copy PGN', font='Verdana 10', command=copy_pgn)
+pgn.place(x=600, y=400)
+
 save_to_archive = tk.Button(root, text='save to archive', font='Verdana 10', command=save_game)
-save_to_archive.place(x=600, y=400)
+save_to_archive.place(x=600, y=430)
 
 open_from_archive = tk.Button(root, text='open archive', font='Verdana 10', command=open_archive)
-open_from_archive.place(x=600, y=430)
+open_from_archive.place(x=600, y=460)
 
 alert1 = tk.Label(root, font='Verdana 8', fg='#b23330', bg='#312e2b')
-alert1.place(x=600, y=470)
+alert1.place(x=600, y=500)
 
 get_move()
 root.mainloop()

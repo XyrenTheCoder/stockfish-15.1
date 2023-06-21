@@ -1,16 +1,16 @@
 import tkinter as tk
-import pyperclip, platform, random, json, string
-import chess
 from tkinter import ttk
+import pyperclip, platform, random, json, string, pygame
+import chess, chess.engine, chess.pgn, stockfish
 from stockfish import Stockfish
-import chess.engine, stockfish
+from datetime import date
 
 if platform.system() == 'Windows':
     stockfish = Stockfish(path='.\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe')
 elif platform.system() == 'Linux':
     stockfish = Stockfish(path='./stockfish_15.1_linux_x64/stockfish-ubuntu-20.04-x86-64')
 else:
-    print('OS not supported, please try to use another OS instead.') #mac bad
+    print('OS not supported, please try to use another OS instead.') # mac bad
     exit()
 
 # {
@@ -29,6 +29,15 @@ else:
 #     "UCI_LimitStrength": "false",
 #     "UCI_Elo": 1350
 # }
+
+pygame.init()
+piece_move = pygame.mixer.Sound('./sfx/move-self.mp3')
+piece_capture = pygame.mixer.Sound('./sfx/capture.mp3')
+piece_castle = pygame.mixer.Sound('./sfx/castle.mp3')
+piece_check = pygame.mixer.Sound('./sfx/move-check.mp3')
+piece_promote = pygame.mixer.Sound('./sfx/promote.mp3')
+game_start = pygame.mixer.Sound('./sfx/notify.mp3')
+game_end = pygame.mixer.Sound('./sfx/game-end.mp3')
 
 with open('./archive.json', 'r') as f: archive = json.load(f)
 f.close()
@@ -58,7 +67,7 @@ def open_archive():
         _label0 = tk.Label(archivewin, text='Game Preview:', font='Verdana 10')
         _label0.place(x=20, y=60)
 
-        vis = tk.Label(archivewin, font='Consolas 10', foreground='#344d50', justify='left')
+        vis = tk.Label(archivewin, font='Consolas 10', fg='#7fa650', justify='left')
         vis.place(x=20, y=90)
 
         open = tk.Button(archivewin, text='open', font='Verdana 10', command=confirm_open)
@@ -66,10 +75,12 @@ def open_archive():
         delete = tk.Button(archivewin, text='delete', font='Verdana 10', command=confirm_delete)
         delete.place(x=80, y=230)
 
-        _label1 = tk.Label(archivewin, font='Verdana 8', foreground='#ff0000')
+        _label1 = tk.Label(archivewin, font='Verdana 8', fg='#ff0000')
         _label1.place(x=20, y=270)
 
         opened = True
+
+        print(get_pgn())
 
 def show_preview(self):
     vis.config(text=chess.Board(archive[gid.get()]))
@@ -159,6 +170,7 @@ def delete_game():
         _label1.config(text=f'Game {gameid} does not exist or is deleted.')
 
 def reset_board():
+    moved.clear()
     stockfish.set_fen_position('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     if flipboard == True:
         board.config(text=stockfish.get_board_visual(False))
@@ -197,25 +209,58 @@ def copy_fen():
     alert1.config(text="Copied FEN from current position!")
     return
 
-turn = 1
+def get_pgn():
+    today = date.today()
+    game = chess.pgn.Game()
+    game.headers["Event"] = "Stockfish Engine 15.1"
+    game.headers["Site"] = "https://github.com/archisha69/stockfish-15.1"
+    game.headers["Date"] = today.strftime("%d.%m.%Y")
+    game.headers["Round"] = "0"
+    game.headers["White"] = "Stockfish Engine 15.1"
+    game.headers["Black"] = "Stockfish Engine 15.1"
+    node = game.add_variation(moved[0])
+    for m in moved[1:]:
+        node = node.add_variation(m)
+    return game
+
 flipboard = False
+board2 = chess.Board()
+moved = []
 def get_move():
-    global turn
+    move.config(state='normal')
+    confirm.config(state='normal', bg='#8bb24d')
     play_move = move.get().strip()
 
     if len(play_move) == 0:
         alert.config(text=f'Generated new best moves.')
-    elif stockfish.is_move_correct(play_move) == True:
-        if turn % 2 == 0:
+    elif stockfish.is_move_correct(play_move) and play_move != '':
+        if board2.gives_check(chess.Move.from_uci(play_move)):
+            piece_check.play()
+        elif play_move == 'e1g1' or play_move == 'e1c1' or play_move == 'e8g8' or play_move == 'e8c8':
+            if (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_KING and stockfish.get_what_is_on_square('h1') == Stockfish.Piece.WHITE_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_KING and stockfish.get_what_is_on_square('a1') == Stockfish.Piece.WHITE_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_KING and stockfish.get_what_is_on_square('h8') == Stockfish.Piece.BLACK_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_KING and stockfish.get_what_is_on_square('a8') == Stockfish.Piece.BLACK_ROOK):
+                piece_castle.play()
+            else:
+                print(play_move[:2], play_move[2:])
+                print(stockfish.get_what_is_on_square(play_move[:2]), stockfish.get_what_is_on_square(play_move[2:]))
+                piece_move.play()
+        elif stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_PAWN and play_move[2:3] == '8' or stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_PAWN and play_move[2:3] == '1':
+            piece_promote.play()
+        elif stockfish.will_move_be_a_capture(play_move) != Stockfish.Capture.NO_CAPTURE:
+            piece_capture.play()
+        else:
+            piece_move.play()
+
+        if stockfish.get_fen_position().split()[1] == 'b':
             alert.config(text=f"Black played: {play_move}")
         else:
             alert.config(text=f"White played: {play_move}")
         stockfish.make_moves_from_current_position([play_move])
-        turn = turn + 1
+        board2.push(chess.Move.from_uci(play_move))
+        moved.append(chess.Move.from_uci(play_move))
     else:
         alert.config(text=f'Move {play_move} is an illegal move or is not an UCI move.')
 
-    if turn % 2 == 0:
+    if stockfish.get_fen_position().split()[1] == 'b':
         to_move.config(text='Black to move:')
     else:
         to_move.config(text='White to move:')
@@ -226,6 +271,17 @@ def get_move():
         board.config(text=stockfish.get_board_visual(False))
     else:
         board.config(text=stockfish.get_board_visual())
+
+    top_moves = ''
+    num = 1
+    for i in stockfish.get_top_moves(3):
+        if i['Centipawn'] == None:
+            top_moves += f"{num}. {i['Move']}, M{i['Mate']}\n"
+            num = num + 1
+        else:
+            top_moves += f"{num}. {i['Move']}, eval {i['Centipawn'] / 100}\n"
+            num = num + 1
+    eval2.config(text=top_moves)
 
     evaluation = stockfish.get_evaluation()
     evalpos = evaluation['value']
@@ -247,27 +303,19 @@ def get_move():
             else:
                 eval.config(text="1-0")
                 evalbar.config(value=2000)
-            eval1.config(text='')
+            move.config(state='disabled')
+            confirm.config(state='disabled', bg='#4b4847')
             eval2.config(text='')
+            pygame.time.delay(500)
+            game_end.play()
             return
-
-    eval1.config(text=stockfish.get_best_move())
-    top_moves = ''
-    num = 1
-    for i in stockfish.get_top_moves(3):
-        if i['Centipawn'] == None:
-            top_moves += f"{num}. {i['Move']}, M{i['Mate']}\n"
-            num = num + 1
-        else:
-            top_moves += f"{num}. {i['Move']}, eval {i['Centipawn'] / 100}\n"
-            num = num + 1
-    eval2.config(text=top_moves)
     return
 
 root = tk.Tk()
 root.geometry('800x800')
 root.title('Stockfish Engine 15.1')
 root.iconbitmap('./stockfish.ico')
+root.config(bg='#312e2b')
 
 style = ttk.Style(root)
 style.theme_use('alt')
@@ -280,75 +328,75 @@ s_lv.set(20)
 dp.set(15)
 gid.set('select game id')
 
-label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', foreground='#344d50')
+label = tk.Label(root, text='Stockfish-15.1@github.com/archisha69', fg='#8bb24d', bg='#312e2b')
 label.place(x=0, y=0)
 
 # stockfish settings
-to_skill_lv = tk.Label(root, text='Stockfish skill level:', font='Verdana 10')
-to_skill_lv.place(x=450, y=30)
-lv = [10, 15, 20]
-skill_lv = tk.OptionMenu(root, s_lv, *lv,)
-skill_lv.place(x=630, y=25)
 
-to_depth = tk.Label(root, text='Stockfish depth:', font='Verdana 10')
-to_depth.place(x=450, y=60)
+to_skill_lv = tk.Label(root, text='Stockfish skill level:', font='Verdana 10', fg='#ffffff', bg='#312e2b')
+to_skill_lv.place(x=800, y=30)
+lv = [10, 15, 20]
+skill_lv = tk.OptionMenu(root, s_lv, *lv)
+skill_lv.place(x=950, y=25)
+skill_lv.config(fg='#ffffff', bg="#3c3936", activeforeground='#ffffff', activebackground='#3c3936', font='Verdana 8')
+
+to_depth = tk.Label(root, text='Stockfish depth:', font='Verdana 10', fg='#ffffff', bg='#312e2b')
+to_depth.place(x=800, y=60)
 d = [10, 15, 20]
 depth = tk.OptionMenu(root, dp, *d)
-depth.place(x=630, y=58)
+depth.place(x=950, y=55)
+depth.config(fg='#ffffff', bg="#3c3936", activeforeground='#ffffff', activebackground='#3c3936', font='Verdana 8')
 
-update = tk.Button(root, text='update', font='Verdana 10', command=update_engine)
-update.place(x=450, y=90)
-reset = tk.Button(root, text='reset', font='Verdana 10', command=reset_engine)
-reset.place(x=520, y=90)
+update = tk.Button(root, text='update', font='Verdana 10', command=update_engine, fg='#ffffff', bg='#8bb24d', activeforeground='#ffffff', activebackground='#537133')
+update.place(x=800, y=90)
+reset = tk.Button(root, text='reset', font='Verdana 10', command=reset_engine, fg='#ffffff', bg='#3c3936', activeforeground='#ffffff', activebackground='#171614')
+reset.place(x=900, y=90)
 
-alert2 = tk.Label(root, font='Verdana 8', foreground='#ff0000', justify='left')
-alert2.place(x=450, y=130)
+alert2 = tk.Label(root, font='Verdana 8', fg='#b23330', bg='#312e2b', justify='left')
+alert2.place(x=800, y=130)
 
 # gameplay
-to_move = tk.Label(root, text='White to move:', font='Verdana 10')
-to_move.place(x=20, y=30)
+eval = tk.Label(root, font='Verdana 10', fg='#ffffff', bg='#312e2b')
+eval.place(x=20, y=30)
+style.configure('black.Vertical.TProgressbar', background='#f9fbfb', troughcolor='#403d39', pbarrelief='flat', troughrelief='flat')
+evalbar = ttk.Progressbar(root, maximum=2000, value=1000, length=500, style='black.Vertical.TProgressbar', orient='vertical',)
+evalbar.place(x=25, y=60)
+
+board = tk.Label(root, text=stockfish.get_board_visual(), font='Consolas 17', fg='#ffffff', bg='#3c3936', justify='left', border=20, padx=10)
+board.place(x=60, y=30)
+
+to_eval = tk.Label(root, text='Analysis:', font='Verdana 15', fg='#ffffff', bg='#312e2b')
+to_eval.place(x=600, y=30)
+
+eval2 = tk.Label(root, font='Verdana 10', fg='#ffffff', bg='#3c3936', justify='left')
+eval2.place(x=600, y=70)
+
+to_move = tk.Label(root, text='White to move:', font='Verdana 10', fg='#8bb24d', bg='#312e2b')
+to_move.place(x=600, y=250)
 move = tk.Entry(root)
-move.place(x=150, y=35)
-confirm = tk.Button(root, text='move', font='Verdana 10', command=get_move)
-confirm.place(x=300, y=30)
-alert = tk.Label(root, font='Verdana 8', foreground='#ff0000', justify='left')
-alert.place(x=20, y=60)
-
-to_eval = tk.Label(root, text='Evaluation:', font='Verdana 10')
-to_eval.place(x=20, y=95)
-eval = tk.Label(root, font='Verdana 10')
-eval.place(x=20, y=115)
-style.configure('black.Horizontal.TProgressbar', background='#f9fbfb', troughcolor='#202727', pbarrelief='flat', troughrelief='flat')
-evalbar = ttk.Progressbar(root, maximum=2000, value=1000, length=315, style='black.Horizontal.TProgressbar')
-evalbar.place(x=80, y=120)
-
-eval1 = tk.Label(root, text='Best Moves:', font='Verdana 10')
-eval1.place(x=20, y=140)
-eval1 = tk.Label(root, font='Verdana 10', foreground='#54a611', background='#fcfcfc', justify='left')
-eval1.place(x=20, y=160)
-eval2 = tk.Label(root, font='Verdana 10', foreground='#03a614', justify='left')
-eval2.place(x=20, y=190)
-
-board = tk.Label(root, text=stockfish.get_board_visual(), font='Consolas 12', foreground='#344d50', justify='left')
-board.place(x=20, y=250)
+move.place(x=730, y=255)
+confirm = tk.Button(root, text='move', font='Verdana 10', command=get_move, fg='#ffffff', bg='#8bb24d', activeforeground='#ffffff', activebackground='#537133')
+confirm.place(x=900, y=250)
+alert = tk.Label(root, font='Verdana 8', fg='#b23330', bg='#312e2b', justify='left')
+alert.place(x=600, y=280)
 
 flipb = tk.Button(root, text='flip board', font='Verdana 10', command=flip_board)
-flipb.place(x=360, y=260)
+flipb.place(x=600, y=310)
 
 resetb = tk.Button(root, text='reset board', font='Verdana 10', command=reset_board)
-resetb.place(x=360, y=290)
+resetb.place(x=600, y=340)
 
 fen = tk.Button(root, text='copy FEN', font='Verdana 10', command=copy_fen)
-fen.place(x=360, y=320)
+fen.place(x=600, y=370)
 
 save_to_archive = tk.Button(root, text='save to archive', font='Verdana 10', command=save_game)
-save_to_archive.place(x=20, y=610)
+save_to_archive.place(x=600, y=400)
 
-open_from_archive = tk.Button(root, text='open from archive', font='Verdana 10', command=open_archive)
-open_from_archive.place(x=170, y=610)
+open_from_archive = tk.Button(root, text='open archive', font='Verdana 10', command=open_archive)
+open_from_archive.place(x=600, y=430)
 
-alert1 = tk.Label(root, font='Verdana 8', foreground='#ff0000')
-alert1.place(x=320, y=390)
+alert1 = tk.Label(root, font='Verdana 8', fg='#b23330', bg='#312e2b')
+alert1.place(x=600, y=470)
 
 get_move()
 root.mainloop()

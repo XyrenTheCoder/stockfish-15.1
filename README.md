@@ -25,7 +25,3 @@ unzip `stockfish-15.1_linux.zip` to use required modules:
 - `chess` (1.9.4)
 
 for `chess`, you might need to install it by `pip insall chess`.
-
-## credits
-
-- [c²#0001](https://github.com/hairyballtheorem) for idea

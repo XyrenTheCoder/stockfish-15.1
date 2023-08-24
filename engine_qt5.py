@@ -1,10 +1,7 @@
-import tkinter as tk
-from tkinter import ttk
-import pyperclip, platform, random, json, string, pygame
+import pyperclip, platform, random, json, string, pygame, os
 import chess, chess.engine, chess.pgn, stockfish
 from stockfish import Stockfish
 from datetime import date
-from PIL import Image, ImageTk
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -46,39 +43,15 @@ piece_promote = pygame.mixer.Sound('./sfx/promote.mp3')
 game_start = pygame.mixer.Sound('./sfx/notify.mp3')
 game_end = pygame.mixer.Sound('./sfx/game-end.mp3')
 
-with open('./archive.json', 'r') as f: archive = json.load(f)
+with open('./data/archive.json', 'r') as f:
+    archive = json.load(f)
+f.close()
+with open('./data/theme.json', 'r') as f:
+    d = json.load(f)
 f.close()
 
-'''
-style = ttk.Style(root)
-style.theme_use('alt')
-
-# stockfish settings
-s_lv = tk.IntVar()
-dp = tk.IntVar()
-gid = tk.StringVar()
-
-gid.set('select game id')
-
-# stockfish settings
-alert2 = tk.Label(root, font='Verdana 8', fg='#b23330', bg='#312e2b', justify='left')
-alert2.place(x=800, y=130)
-
-# gameplay
-eval2 = tk.Label(root, font='Verdana 10', fg='#ffffff', bg='#3c3936', justify='left')
-eval2.place(x=600, y=70)
-
-
-open_from_archive = tk.Button(root, text='open archive', font='Verdana 10', command=open_archive)
-open_from_archive.place(x=600, y=460)
-
-alert1 = tk.Label(root, font='Verdana 8', fg='#b23330', bg='#312e2b')
-alert1.place(x=600, y=500)
-
-get_move()
-root.mainloop()
-'''
-
+piecetheme = d['pieces']
+boardtheme = d['board']
 
 qss = """
 QMenuBar {
@@ -113,6 +86,25 @@ QMenu::item:selected {
 """
 
 dropdownss = """
+QComboBox QAbstractItemView {
+    selection-background-color: #8bb24d;
+    selection-color: white;
+    background-color: #4b4847;
+    color: white;
+}
+QComboBox {
+    background-color: #4b4847;
+    color: white;
+    border: 1px solid black;
+    margin: 2px;
+}
+QComboBox::drop-down {
+    width: 15px;
+    color: white;
+}
+"""
+
+themess = """
 QComboBox QAbstractItemView {
     selection-background-color: #8bb24d;
     selection-color: white;
@@ -232,6 +224,9 @@ class main(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.md = piecetheme
+        self.mdb = boardtheme
+        print(self.md, self.mdb)
         self.get_move()
 
     # variables and functions
@@ -239,32 +234,94 @@ class main(QMainWindow):
     board2 = chess.Board()
     moved = []
     flipboard = False
+    theme = 0
+    md = './gfx/themes/themeset/default/'
+    mdb = md
+
+    def set_theme0(self):
+        self.theme = 0
+        self.md = './gfx/themes/themeset/default/'
+        self.mdb = self.md
+        with open('./data/theme.json', 'w') as f:
+            d['board'] = self.mdb
+            d['pieces'] = self.md
+            json.dump(d, f, indent=4)
+        f.close()
+        return self.get_move()
+
+    def set_theme1(self):
+        self.theme = 1
+        self.md = './gfx/themes/themeset/cheggs/'
+        self.mdb = self.md
+        with open('./data/theme.json', 'w') as f:
+            d['board'] = self.mdb
+            d['pieces'] = self.md
+            json.dump(d, f, indent=4)
+        f.close()
+        return self.get_move()
+
+    def set_theme2(self):
+        self.theme = 2
+        self.md = './gfx/themes/themeset/starlight/'
+        self.mdb = self.md
+        with open('./data/theme.json', 'w') as f:
+            d['board'] = self.mdb
+            d['pieces'] = self.md
+            json.dump(d, f, indent=4)
+        f.close()
+        return self.get_move()
+
+    def set_theme999(self):
+        self.theme = 999 # 999 is preserved for customized theme
+        self.pieceset = './gfx/themes/pieces/'
+        self.boardset = './gfx/themes/boards/'
+        self.theme_win_o.theme_preview()
+        self.theme_win_o.show()
+
 
     def set_board(self, fen):
         for k in range(1, 65):
-            a = getattr(self, ("sq%2d" % k).replace(" ", ""))
-            a.clear()
+            b = getattr(self, ("sq%2d" % k).replace(" ", ""))
+            b.clear()
         square = 0
         fenshort = str(fen.split()[0].replace('/', ''))
+
+        self.P = QPixmap(f'{self.md}piece-pw.png')
+        self.R = QPixmap(f'{self.md}piece-rw.png')
+        self.N = QPixmap(f'{self.md}piece-nw.png')
+        self.B = QPixmap(f'{self.md}piece-bw.png')
+        self.Q = QPixmap(f'{self.md}piece-qw.png')
+        self.K = QPixmap(f'{self.md}piece-kw.png')
+        self.p = QPixmap(f'{self.md}piece-pb.png')
+        self.r = QPixmap(f'{self.md}piece-rb.png')
+        self.n = QPixmap(f'{self.md}piece-nb.png')
+        self.b = QPixmap(f'{self.md}piece-bb.png')
+        self.q = QPixmap(f'{self.md}piece-qb.png')
+        self.k = QPixmap(f'{self.md}piece-kb.png')
+
         if self.flipboard == False:
             for i in fenshort:
                 square += 1
                 if i.isdigit():
                     for j in range(fenshort.find(i)+1, int(i)):
-                        eval(f'self.sq{j}.setPixmap(self.empty)')
+                        eval(f'self.sq{j}.setPixmap(QPixmap("./gfx/piece-empty.png"))')
                     square += int(i)-1
                 else:
                     eval(f'self.sq{square}.setPixmap(self.{i})')
+            self.board_placeholder.setPixmap(QPixmap(f'{self.mdb}board_normal.png'))
+            self.board_placeholder.resize(QPixmap(f'{self.mdb}board_normal.png').width(), QPixmap(f'{self.mdb}board_normal.png').height())
         else:
-            fenflipped = fenshort[::1]
-            for i in fenflipped:
+            for i in fenshort[::1]:
                 square += 1
                 if i.isdigit():
-                    for j in range(fenflipped.find(i), int(i)):
-                        eval(f'self.sq{j}.setPixmap(self.empty)')
+                    for j in range(fenshort[::1].find(i)+1, int(i)):
+                        eval(f'self.sq{j}.setPixmap(QPixmap("./gfx/piece-empty.png"))')
                     square += int(i)-1
                 else:
                     eval(f'self.sq{square}.setPixmap(self.{i})')
+            self.board_placeholder.setPixmap(QPixmap(f'{self.mdb}board_flipped.png'))
+            self.board_placeholder.resize(QPixmap(f'{self.mdb}board_flipped.png').width(), QPixmap(f'{self.mdb}board_flipped.png').height())
+        return
 
     def open_engine(self):
         self.engine_win_o.show()
@@ -273,7 +330,7 @@ class main(QMainWindow):
         self.share_win_o.show()
         self.share_win_o.pgnbox.clear()
         self.share_win_o.fenbox.setText(stockfish.get_fen_position())
-        self.share_win_o.pgnbox.insertPlainText(share_win.get_pgn(self))
+        self.share_win_o.pgnbox.insertPlainText(self.share_win_o.get_pgn())
 
     def open_archive(self):
         self.archive_win_o.show()
@@ -292,15 +349,29 @@ class main(QMainWindow):
             return self.save_game()
         else:
             archive[gameid] = stockfish.get_fen_position()
-            with open('./archive.json', 'w') as f:
+            with open('./data/archive.json', 'w') as f:
                 json.dump(archive, f, indent=4)
             f.close()
+            with open(f'./data/{gameid}.json', 'a+') as r:
+                r.write('{ "pgn": ""}')
+            r.close()
+            with open(f'./data/{gameid}.json', 'r') as r:
+                g = json.load(r)
+            r.close()
+            with open(f'./data/{gameid}.json', 'w') as r:
+                g['pgn'] = share_win.get_pgn(self).split(']\n')[7]
+                json.dump(g, r, indent=4)
+            r.close()
         self.mainStatusBar.showMessage(f"Saved game {gameid} to archive!", 2000)
         return
 
     def reset_board(self):
         moved.clear()
+        self.movelist.setText('')
         stockfish.set_fen_position('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+        self.board2.set_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+        self.share_win_o.game.setup('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+        self.share_win_o.pgnbox.insertPlainText(self.share_win_o.get_pgn())
         self.check_flip()
         self.get_move()
         game_start.play()
@@ -309,30 +380,32 @@ class main(QMainWindow):
 
     def check_flip(self):
         if self.flipboard == True:
-            self.board_placeholder.setPixmap(self.boardb)
+            self.board_placeholder.setPixmap(QPixmap(f'{self.mdb}board_flipped.png'))
             self.set_board(stockfish.get_fen_position().split()[0][::-1])
         else:
-            self.board_placeholder.setPixmap(self.boardw)
+            self.board_placeholder.setPixmap(QPixmap(f'{self.mdb}board_normal.png'))
             self.set_board(stockfish.get_fen_position())
 
     def flip_board(self):
         if self.flipboard != True:
             self.flipboard = True
-            self.board_placeholder.setPixmap(self.boardb)
+            self.board_placeholder.setPixmap(QPixmap(f'{self.mdb}board_flipped.png'))
             self.set_board(stockfish.get_fen_position().split()[0][::-1])
         else:
             self.flipboard = False
+            self.board_placeholder.setPixmap(QPixmap(f'{self.mdb}board_normal.png'))
             self.set_board(stockfish.get_fen_position())
-            self.board_placeholder.setPixmap(self.boardw)
         return
 
     def rt_moves(self):
         p = ''
-        pgn = share_win.get_pgn(self).split(']\n')[7]
-        grouped = list(zip(*[iter(pgn.split())]*3))
-        for i in grouped:
-            p += '      '.join(i)+'\n'
-        self.movelist.setText(p)
+        pgn = self.share_win_o.get_pgn().split(']\n')[-1]
+        #print(pgn)
+        # grouped = list(zip(*[iter(pgn.split())]*3))
+        # for i in grouped:
+        #     p += '      '.join(i)+'\n'
+        # self.movelist.setText(p)
+        self.movelist.setText(pgn)
 
     def get_move(self):
         self.confirm.setEnabled(True)
@@ -341,17 +414,19 @@ class main(QMainWindow):
         self.alert.clear()
         play_move = self.movepiece.text().strip()
 
+        self.set_board(stockfish.get_fen_position())
+
         if len(play_move) == 0:
             self.mainStatusBar.showMessage('Generated new best moves.', 2000)
         elif stockfish.is_move_correct(play_move) and play_move != '':
-            if self.board2.gives_check(chess.Move.from_uci(play_move)):
+            if self.board2.is_into_check(chess.Move.from_uci(play_move)): #random check sound while not in check, bug
                 piece_check.play()
             elif play_move == 'e1g1' or play_move == 'e1c1' or play_move == 'e8g8' or play_move == 'e8c8':
                 if (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_KING and stockfish.get_what_is_on_square('h1') == Stockfish.Piece.WHITE_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_KING and stockfish.get_what_is_on_square('a1') == Stockfish.Piece.WHITE_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_KING and stockfish.get_what_is_on_square('h8') == Stockfish.Piece.BLACK_ROOK) or (stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_KING and stockfish.get_what_is_on_square('a8') == Stockfish.Piece.BLACK_ROOK):
                     piece_castle.play()
                 else:
-                    print(play_move[:2], play_move[2:])
-                    print(stockfish.get_what_is_on_square(play_move[:2]), stockfish.get_what_is_on_square(play_move[2:]))
+                    # print(play_move[:2], play_move[2:])
+                    # print(stockfish.get_what_is_on_square(play_move[:2]), stockfish.get_what_is_on_square(play_move[2:]))
                     piece_move.play()
             elif stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.WHITE_PAWN and play_move[2:3] == '8' or stockfish.get_what_is_on_square(play_move[:2]) == Stockfish.Piece.BLACK_PAWN and play_move[2:3] == '1':
                 piece_promote.play()
@@ -380,7 +455,7 @@ class main(QMainWindow):
         num = 1
         for i in stockfish.get_top_moves(3):
             if i['Centipawn'] == None:
-                top_moves += f"{num}. {i['Move']} ======== {i['Mate']}\n"
+                top_moves += f"{num}. {i['Move']} ======== M{i['Mate']}\n"
                 num = num + 1
             else:
                 top_moves += f"{num}. {i['Move']} -------- {i['Centipawn'] / 100}\n"
@@ -444,9 +519,7 @@ class main(QMainWindow):
         save_g = QAction("Save Game To Archive", self)
         save_g.triggered.connect(self.save_game)
 
-        optionMenu.addAction(new_game)
-        optionMenu.addAction(o_archivewin)
-        optionMenu.addAction(save_g)
+        optionMenu.addActions([new_game, o_archivewin, save_g])
 
         # Edit engine tab
         editMenu = QMenu("&Edit Engine", self)
@@ -457,8 +530,25 @@ class main(QMainWindow):
 
         editMenu.addAction(o_enginewin)
 
+        # Theme tab
+        themeset = QMenu("&Theme", self)
+
+        theme0 = QAction("Default", self)
+        theme0.triggered.connect(self.set_theme0)
+        theme1 = QAction("Cheggs", self)
+        theme1.triggered.connect(self.set_theme1)
+        theme2 = QAction("Starlight", self)
+        theme2.triggered.connect(self.set_theme2)
+
+        theme999 = QAction("Customize...", self)
+        theme999.triggered.connect(self.set_theme999)
+        self.theme_win_o = theme_win()
+
+        themeset.addActions([theme0, theme1, theme2, theme999])
+
         menuBar.addMenu(optionMenu)
         menuBar.addMenu(editMenu)
+        menuBar.addMenu(themeset)
 
         # top label, this does nothing
         self.label = QLabel('Stockfish-15.1@github.com/archisha69', self)
@@ -482,12 +572,8 @@ class main(QMainWindow):
         self.evalbar.setOrientation(Qt.Vertical)
 
         # board
-        self.boardw = QPixmap('./gfx/board_normal.png')
-        self.boardb = QPixmap('./gfx/board_flipped.png')
         self.board_placeholder = QLabel(self)
         self.board_placeholder.move(60, 100)
-        self.board_placeholder.setPixmap(self.boardw)
-        self.board_placeholder.resize(self.boardw.width(), self.boardw.height())
 
         # pieces
         x = 0
@@ -502,20 +588,6 @@ class main(QMainWindow):
             if i % 8 == 0:
                 x = 0
                 y += 1
-
-        self.P = QPixmap('./gfx/piece-pw.png')
-        self.R = QPixmap('./gfx/piece-rw.png')
-        self.N = QPixmap('./gfx/piece-nw.png')
-        self.B = QPixmap('./gfx/piece-bw.png')
-        self.Q = QPixmap('./gfx/piece-qw.png')
-        self.K = QPixmap('./gfx/piece-kw.png')
-        self.p = QPixmap('./gfx/piece-pb.png')
-        self.r = QPixmap('./gfx/piece-rb.png')
-        self.n = QPixmap('./gfx/piece-nb.png')
-        self.b = QPixmap('./gfx/piece-bb.png')
-        self.q = QPixmap('./gfx/piece-qb.png')
-        self.k = QPixmap('./gfx/piece-kb.png')
-        self.empty = QPixmap('./gfx/piece-empty.png')
 
         self.to_eval = QLabel("Analysis:", self)
         self.to_eval.setStyleSheet("color:white;")
@@ -576,30 +648,109 @@ class main(QMainWindow):
 
         self.showMaximized()
 
+class theme_win(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.widget()
+
+    def theme_preview(self):
+        self.visb.setPixmap(QPixmap(f'./gfx/themes/boards/{self.board.currentText()}/pre.png'))
+        self.visp.setPixmap(QPixmap(f'./gfx/themes/pieces/{self.piece.currentText()}/pre.png'))
+        return
+
+    def change_theme(self):
+        w.md = f'./gfx/themes/pieces/{self.piece.currentText()}/'
+        w.mdb = f'./gfx/themes/boards/{self.board.currentText()}/'
+        w.set_board(stockfish.get_fen_position())
+        with open('./data/theme.json', 'w') as f:
+            d['board'] = w.mdb
+            d['pieces'] = w.md
+            json.dump(d, f, indent=4)
+        f.close()
+        return
+
+    def widget(self):
+        self.setWindowTitle('Themes')
+        self.setWindowIcon(QIcon('./gfx/stockfish.ico'))
+        self.setGeometry(100, 100, 700, 800)
+        self.setStyleSheet("background-color:#312e2b;")
+
+        self.board_label = QLabel('Board Theme:', self)
+        self.board_label.setStyleSheet("color:#ffffff;")
+        self.board_label.setFont(QFont('Verdana', 10))
+        self.board_label.move(10, 10)
+        self.board_label.adjustSize()
+
+        self.board = QComboBox(self)
+        b = os.listdir('./gfx/themes/boards')
+        b.sort()
+        self.board.addItems(b)
+        self.board.setStyleSheet(themess)
+        self.board.setFont(QFont('Verdana', 10))
+        self.board.setCurrentText('default')
+        self.board.resize(200, 30)
+        self.board.move(200, 10)
+        self.board.activated.connect(self.theme_preview)
+
+        self.piece_label = QLabel('Pieces Theme:', self)
+        self.piece_label.setStyleSheet("color:#ffffff;")
+        self.piece_label.setFont(QFont('Verdana', 10))
+        self.piece_label.move(10, 60)
+        self.piece_label.adjustSize()
+
+        self.piece = QComboBox(self)
+        p = os.listdir('./gfx/themes/pieces')
+        p.sort()
+        self.piece.addItems(p)
+        self.piece.setStyleSheet(themess)
+        self.piece.setFont(QFont('Verdana', 10))
+        self.piece.setCurrentText('default')
+        self.piece.resize(200, 30)
+        self.piece.move(200, 60)
+        self.piece.activated.connect(self.theme_preview)
+
+        self.visb = QLabel(self)
+        self.visb.resize(200, 200)
+        self.visb.move(450, 10)
+        self.visb.setAttribute(Qt.WA_TranslucentBackground)
+
+        self.visp = QLabel(self)
+        self.visp.resize(200, 200)
+        self.visp.move(450, 10)
+        self.visp.setAttribute(Qt.WA_TranslucentBackground)
+
+        self.set = QPushButton('Set Theme', self)
+        self.set.setGeometry(10, 300, 150, 50)
+        self.set.setStyleSheet(buttonss)
+        self.set.setFont(QFont('Verdana', 10))
+        self.set.clicked.connect(self.change_theme)
+
 class share_win(QMainWindow):
     def __init__(self):
         super().__init__()
         self.widget()
 
+    game = chess.pgn.Game()
+
     def get_pgn(self):
         today = date.today()
-        game = chess.pgn.Game()
-        #game.headers["Event"] = "Stockfish Engine 15.1"
-        game.headers["Site"] = "https://github.com/archisha69/stockfish-15.1"
-        game.headers["Date"] = today.strftime("%Y.%m.%d")
+        # game.setup(stockfish.get_fen_position())
+        # game.headers["Event"] = "Stockfish Engine 15.1"
+        self.game.headers["Site"] = "https://github.com/archisha69/stockfish-15.1"
+        self.game.headers["Date"] = today.strftime("%Y.%m.%d")
         #game.headers["Round"] = "0"
-        game.headers["White"] = "Stockfish Engine 15.1"
-        game.headers["Black"] = "Stockfish Engine 15.1"
+        self.game.headers["White"] = "Stockfish Engine 15.1"
+        self.game.headers["Black"] = "Stockfish Engine 15.1"
         try:
-            node = game.add_variation(moved[0])
+            node = self.game.add_main_variation(moved[0])
             for m in moved[1:]:
-                node = node.add_variation(m)
+                node = node.add_main_variation(m)
         except IndexError:
             #alert1.config(text='PGN empty!')
             pass
         finally:
-            exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
-            pgn = game.accept(exporter)
+            exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=True)
+            pgn = self.game.accept(exporter)
         return pgn
 
     def copy_fen(self):
@@ -820,7 +971,7 @@ class archive_win(QMainWindow):
         self.mainStatusBar.showMessage("Type in dropdown to search ID!")
 
     def get_archive(self):
-        with open('./archive.json', 'r') as f:
+        with open('./data/archive.json', 'r') as f:
             archive = json.load(f)
         f.close()
         g = list(archive)
@@ -928,7 +1079,12 @@ class confirm_win(QMainWindow):
         gameid = w.archive_win_o.gamelist.currentText()
         fen = archive[f'{gameid}']
         stockfish.set_fen_position(fen)
-        w.set_board(stockfish.get_fen_position())
+        w.set_board(fen)
+        w.board2.set_board_fen(fen.split()[0])
+        share_win.game.setup(fen)
+        print(w.board2.board_fen(), fen.split()[0])
+        w.movelist.setText('') #temp clear move list
+        moved.clear() #temp clear moved i have no idea how to fix the chess module bug
         w.mainStatusBar.showMessage(f"Opened game {gameid} from archive!")
         w.get_move()
         self.destroy()
@@ -939,7 +1095,7 @@ class confirm_win(QMainWindow):
         gameid = w.archive_win_o.gamelist.currentText()
         if gameid in archive:
             del archive[gameid]
-            with open('./archive.json', 'w') as f:
+            with open('./data/archive.json', 'w') as f:
                 json.dump(archive, f, indent=4)
             f.close()
             w.mainStatusBar.showMessage(f"Deleted game {gameid} from archive!")
@@ -953,8 +1109,8 @@ class confirm_win(QMainWindow):
     def widget(self):
         self.setWindowTitle('Confirm')
         self.setWindowIcon(QIcon('./gfx/stockfish.ico'))
-        self.setGeometry(100, 100, 570, 400)
-        self.setFixedSize(570, 150)
+        self.setGeometry(100, 100, 570, 150)
+        self.setFixedSize(570, 200)
         self.setStyleSheet("background-color:#312e2b;")
 
         self.mainStatusBar = QStatusBar(self)
@@ -963,7 +1119,7 @@ class confirm_win(QMainWindow):
         self.mainStatusBar.setFont(QFont('Verdana', 8))
 
         self.warn = QLabel(self)
-        self.warn.setStyleSheet("color:white;background-color:#bbbbbb;")
+        self.warn.setStyleSheet("color:white;")
         self.warn.setFont(QFont('Verdana', 10))
         self.warn.setAlignment(Qt.AlignCenter)
         self.warn.resize(550, 70)

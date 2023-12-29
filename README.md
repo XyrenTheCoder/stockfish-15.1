@@ -14,4 +14,7 @@ unzip `stockfish-15.1_linux.zip` to use required modules:
 
 - `stockfish_15.1_linux_x64` (latest version of stockfish)
 
+open terminal to run the following command:
+chmod +x stockfish_10_x64
+
 # engine_qt5.py (using pyqt5) and engine.py (using tkinter) are unfinished

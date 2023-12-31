@@ -1,4 +1,4 @@
 {
-    "board": "./gfx/themes/themeset/default/",
-    "pieces": "./gfx/themes/themeset/default/"
+    "board": "./gfx/themes/boards/wood/",
+    "pieces": "./gfx/themes/pieces/default/"
 }

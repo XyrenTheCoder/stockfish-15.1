@@ -1,4 +1,4 @@
-import pyperclip, platform, random, json, string, pygame, os
+import pyperclip, platform, random, json, string, pygame, os, io
 import chess, chess.engine, chess.pgn, stockfish
 from stockfish import Stockfish
 from datetime import date
@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import *
 import sys
 
 if platform.system() == 'Windows':
-    stockfish = Stockfish(path='.\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe')
+    stockfish = Stockfish(path='./stockfish_15.1_win_x64_avx2/stockfish-windows-2022-x86-64-avx2.exe')
 elif platform.system() == 'Linux':
     stockfish = Stockfish(path='./stockfish_15.1_linux_x64/stockfish-ubuntu-20.04-x86-64')
 else:
@@ -226,13 +226,12 @@ class main(QMainWindow):
         self.initUI()
         self.md = piecetheme
         self.mdb = boardtheme
-        print(self.md, self.mdb)
         self.get_move()
 
     # variables and functions
     global moved
     board2 = chess.Board()
-    moved = []
+    moved = ['1']
     flipboard = False
     theme = 0
     md = './gfx/themes/themeset/default/'
@@ -277,7 +276,6 @@ class main(QMainWindow):
         self.boardset = './gfx/themes/boards/'
         self.theme_win_o.theme_preview()
         self.theme_win_o.show()
-
 
     def set_board(self, fen):
         for k in range(1, 65):
@@ -330,7 +328,7 @@ class main(QMainWindow):
         self.share_win_o.show()
         self.share_win_o.pgnbox.clear()
         self.share_win_o.fenbox.setText(stockfish.get_fen_position())
-        self.share_win_o.pgnbox.insertPlainText(self.share_win_o.get_pgn())
+        self.share_win_o.pgnbox.insertPlainText(self.share_win_o.retrieve_pgn())
 
     def open_archive(self):
         self.archive_win_o.show()
@@ -348,20 +346,20 @@ class main(QMainWindow):
         if gameid in archive:
             return self.save_game()
         else:
-            archive[gameid] = stockfish.get_fen_position()
+            archive[gameid] = f'{share_win.get_pgn(self)}\n[!FEN {w.board2.fen()}]'
             with open('./data/archive.json', 'w') as f:
                 json.dump(archive, f, indent=4)
             f.close()
-            with open(f'./data/{gameid}.json', 'a+') as r:
-                r.write('{ "pgn": ""}')
-            r.close()
-            with open(f'./data/{gameid}.json', 'r') as r:
-                g = json.load(r)
-            r.close()
-            with open(f'./data/{gameid}.json', 'w') as r:
-                g['pgn'] = share_win.get_pgn(self).split(']\n')[7]
-                json.dump(g, r, indent=4)
-            r.close()
+            # with open(f'./data/{gameid}.json', 'a+') as r:
+            #     r.write('{ "pgn": ""}')
+            # r.close()
+            # with open(f'./data/{gameid}.json', 'r') as r:
+            #     g = json.load(r)
+            # r.close()
+            # with open(f'./data/{gameid}.json', 'w') as r:
+            #     g['pgn'] =
+            #     json.dump(g, r, indent=4)
+            # r.close()
         self.mainStatusBar.showMessage(f"Saved game {gameid} to archive!", 2000)
         return
 
@@ -370,7 +368,11 @@ class main(QMainWindow):
         self.movelist.setText('')
         stockfish.set_fen_position('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
         self.board2.set_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
-        self.share_win_o.game.setup('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+        game.setup('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+        try:
+            game.remove_variation(0)
+        except IndexError: pass
+        moved.append("1")
         self.share_win_o.pgnbox.insertPlainText(self.share_win_o.get_pgn())
         self.check_flip()
         self.get_move()
@@ -438,6 +440,13 @@ class main(QMainWindow):
             stockfish.make_moves_from_current_position([play_move])
             self.board2.push(chess.Move.from_uci(play_move))
             moved.append(chess.Move.from_uci(play_move))
+            print(moved[0] == "1")
+            if moved[0] == "1":
+                moved.pop(0)
+                self.node = game.add_variation(moved[0])
+            else:
+                self.node = self.node.add_variation(moved[0])
+            moved.clear()
             self.rt_moves()
         else:
             self.alert.setText(f'Move {play_move} is an illegal move or is not an UCI move.')
@@ -551,7 +560,7 @@ class main(QMainWindow):
         menuBar.addMenu(themeset)
 
         # top label, this does nothing
-        self.label = QLabel('Stockfish-15.1@github.com/archisha69', self)
+        self.label = QLabel('Stockfish-15.1@github.com/XyrenTheCoder', self)
         self.label.setStyleSheet("color:#8bb24d;")
         self.label.setFont(QFont('Verdana', 8))
         self.label.move(0, 30)
@@ -725,33 +734,41 @@ class theme_win(QMainWindow):
         self.set.setFont(QFont('Verdana', 10))
         self.set.clicked.connect(self.change_theme)
 
+game = chess.pgn.Game()
+
 class share_win(QMainWindow):
     def __init__(self):
         super().__init__()
         self.widget()
 
-    game = chess.pgn.Game()
-
     def get_pgn(self):
         today = date.today()
-        # game.setup(stockfish.get_fen_position())
+        # game.headers["FEN"] = main.board2.fen()
         # game.headers["Event"] = "Stockfish Engine 15.1"
-        self.game.headers["Site"] = "https://github.com/archisha69/stockfish-15.1"
-        self.game.headers["Date"] = today.strftime("%Y.%m.%d")
+        game.headers["Site"] = "https://github.com/XyrenTheCoder/stockfish-15.1"
+        game.headers["Date"] = today.strftime("%Y.%m.%d")
         #game.headers["Round"] = "0"
-        self.game.headers["White"] = "Stockfish Engine 15.1"
-        self.game.headers["Black"] = "Stockfish Engine 15.1"
-        try:
-            node = self.game.add_main_variation(moved[0])
-            for m in moved[1:]:
-                node = node.add_main_variation(m)
-        except IndexError:
-            #alert1.config(text='PGN empty!')
-            pass
-        finally:
-            exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=True)
-            pgn = self.game.accept(exporter)
-        return pgn
+        game.headers["White"] = "Stockfish Engine 15.1"
+        game.headers["Black"] = "Stockfish Engine 15.1"
+        # try:
+        #     # node = game.add_main_variation(moved[0])
+        #     # print(moved)
+        #     # moved.pop(0)
+        #     # print(moved)
+        #     # for m in moved:
+        #     #     node = node.add_main_variation(m)
+        # except IndexError: pass
+        # exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
+        # pgn = game.accept(exporter)
+        print(game)
+        return str(game)
+
+    def retrieve_pgn(self):
+        gameid = w.archive_win_o.gamelist.currentText() #NameError: name 'w' is not defined??????
+        p = archive[f'{gameid}']
+        pgn = p.split('\n[!FEN ')[0]
+        # #v # make print pgn out a function
+        return
 
     def copy_fen(self):
         pyperclip.copy(stockfish.get_fen_position())
@@ -803,7 +820,7 @@ class share_win(QMainWindow):
         self.pgnbox.setReadOnly(True)
         self.pgnbox.move(10, 140)
         self.pgnbox.resize(600, 500)
-        self.pgnbox.insertPlainText(self.get_pgn())
+        self.pgnbox.insertPlainText(self.retrieve_pgn())
 
         self.copypgn = QPushButton(self)
         self.copypgn.setGeometry(610, 140, 50, 50)
@@ -978,7 +995,9 @@ class archive_win(QMainWindow):
         return g
 
     def show_preview(self):
-        self.vis.setText(str(chess.Board(archive[self.gamelist.currentText()])))
+        p = archive[f'{self.gamelist.currentText()}']
+        fen = p.split('\n[!FEN ')[1].split(']')[0]
+        self.vis.setText(str(chess.Board(fen)))
         return
 
     def confirm_open(self):
@@ -1077,19 +1096,24 @@ class confirm_win(QMainWindow):
 
     def retrieve_game(self):
         gameid = w.archive_win_o.gamelist.currentText()
-        fen = archive[f'{gameid}']
+        p = archive[f'{gameid}']
+        fen = p.split('\n[!FEN ')[1].split(']')[0]
+        w.reset_board()
+        moved.clear()
         stockfish.set_fen_position(fen)
         w.set_board(fen)
         w.board2.set_board_fen(fen.split()[0])
-        share_win.game.setup(fen)
-        print(w.board2.board_fen(), fen.split()[0])
-        w.movelist.setText('') #temp clear move list
-        moved.clear() #temp clear moved i have no idea how to fix the chess module bug
+        chess.pgn.read_game(io.StringIO(p.split('\n[!FEN ')[0]))
+        w.board2.set_fen(fen)
+        game.setup(w.board2.fen()) #??
+        print(w.board2.fen())
+        pgn = p.split('[!FEN "')[0].split(']\n')[-1]
+        w.movelist.setText(pgn)
         w.mainStatusBar.showMessage(f"Opened game {gameid} from archive!")
         w.get_move()
         self.destroy()
         w.archive_win_o.destroy()
-        return
+        return game
 
     def delete_game(self):
         gameid = w.archive_win_o.gamelist.currentText()
@@ -1131,9 +1155,9 @@ class confirm_win(QMainWindow):
         self.confirm.setStyleSheet(buttonss)
         self.confirm.setFont(QFont('Verdana', 10))
 
-if __name__ == '__main__':
-    app = QApplication([])
-    app.setStyleSheet(qss)
-    w = main()
-    w.show()
-    sys.exit(app.exec_())
+#if __name__ == '__main__':
+app = QApplication([])
+app.setStyleSheet(qss)
+w = main()
+w.show()
+sys.exit(app.exec_())

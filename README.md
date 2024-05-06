@@ -1,5 +1,3 @@
-# stockfish engine 3.28.0
-
 # Using Stockfish 15.1
 
 ## On Linux:
